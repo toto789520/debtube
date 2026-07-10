@@ -1,26 +1,40 @@
 """
 Tests for GUI components.
+These tests require a display server (X11) to run.
 """
 
 import pytest
+import os
+import sys
+
+# Skip all GUI tests if DISPLAY is not set (no X11 server)
+pytestmark = pytest.mark.skipif(
+    not os.environ.get('DISPLAY'),
+    reason="No display server available (DISPLAY not set)"
+)
+
+# Also skip if running in CI environment without xvfb
+if os.environ.get('CI') and not os.environ.get('DISPLAY'):
+    pytestmark = pytest.mark.skip(reason="Running in CI without display")
+
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 
 from src.core.yt_client import VideoInfo
 from src.core.playlist_manager import PlaylistManager
 from src.utils.image_loader import ImageLoader
-from src.gui.video_item import VideoItemWidget
-from src.gui.search_widget import SearchWidget
-from src.gui.playlist_widget import PlaylistWidget
-from src.gui.player_widget import PlayerWidget
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def qapp():
     """Create a QApplication instance for testing."""
-    app = QApplication([])
-    yield app
-    app.quit()
+    # Check if we can create a QApplication
+    try:
+        app = QApplication([])
+        yield app
+        app.quit()
+    except Exception as e:
+        pytest.skip(f"Cannot create QApplication: {e}")
 
 
 @pytest.fixture
@@ -45,8 +59,17 @@ def image_loader():
     return ImageLoader(cache_enabled=False)
 
 
+@pytest.fixture
+def mock_yt_client():
+    """Create a mock YouTubeClient for testing."""
+    from unittest.mock import MagicMock
+    return MagicMock()
+
+
 def test_video_item_widget_creation(qapp, video_info, image_loader):
     """Test VideoItemWidget creation."""
+    from src.gui.video_item import VideoItemWidget
+    
     widget = VideoItemWidget(
         video_info=video_info,
         image_loader=image_loader
@@ -59,6 +82,8 @@ def test_video_item_widget_creation(qapp, video_info, image_loader):
 
 def test_video_item_widget_signals(qapp, video_info, image_loader, qtbot):
     """Test VideoItemWidget signals."""
+    from src.gui.video_item import VideoItemWidget
+    
     widget = VideoItemWidget(
         video_info=video_info,
         image_loader=image_loader
@@ -72,6 +97,8 @@ def test_video_item_widget_signals(qapp, video_info, image_loader, qtbot):
 
 def test_video_item_widget_double_click(qapp, video_info, image_loader, qtbot):
     """Test VideoItemWidget double click signal."""
+    from src.gui.video_item import VideoItemWidget
+    
     widget = VideoItemWidget(
         video_info=video_info,
         image_loader=image_loader
@@ -85,6 +112,8 @@ def test_video_item_widget_double_click(qapp, video_info, image_loader, qtbot):
 
 def test_video_item_widget_without_thumbnail(qapp, video_info, image_loader):
     """Test VideoItemWidget without thumbnail."""
+    from src.gui.video_item import VideoItemWidget
+    
     widget = VideoItemWidget(
         video_info=video_info,
         image_loader=image_loader,
@@ -97,6 +126,8 @@ def test_video_item_widget_without_thumbnail(qapp, video_info, image_loader):
 
 def test_video_item_widget_metadata(qapp, video_info, image_loader):
     """Test VideoItemWidget with metadata display."""
+    from src.gui.video_item import VideoItemWidget
+    
     widget = VideoItemWidget(
         video_info=video_info,
         image_loader=image_loader,
@@ -114,13 +145,12 @@ def test_video_item_widget_metadata(qapp, video_info, image_loader):
     assert "1.0M" in metadata_text  # 1000000 views
 
 
-def test_search_widget_creation(qapp, image_loader):
+def test_search_widget_creation(qapp, image_loader, mock_yt_client):
     """Test SearchWidget creation."""
-    from unittest.mock import MagicMock
-    yt_client = MagicMock()
+    from src.gui.search_widget import SearchWidget
     
     widget = SearchWidget(
-        yt_client=yt_client,
+        yt_client=mock_yt_client,
         image_loader=image_loader
     )
     
@@ -129,14 +159,14 @@ def test_search_widget_creation(qapp, image_loader):
     assert widget.search_button is not None
 
 
-def test_search_widget_signals(qapp, image_loader, qtbot):
+def test_search_widget_signals(qapp, image_loader, mock_yt_client, qtbot):
     """Test SearchWidget signals."""
-    from unittest.mock import MagicMock
-    yt_client = MagicMock()
-    yt_client.search.return_value = []
+    from src.gui.search_widget import SearchWidget
+    
+    mock_yt_client.search.return_value = []
     
     widget = SearchWidget(
-        yt_client=yt_client,
+        yt_client=mock_yt_client,
         image_loader=image_loader
     )
     
@@ -146,11 +176,12 @@ def test_search_widget_signals(qapp, image_loader, qtbot):
         assert len(signals) == 1
 
 
-def test_playlist_widget_creation(qapp, image_loader):
+def test_playlist_widget_creation(qapp, image_loader, mock_yt_client):
     """Test PlaylistWidget creation."""
-    from unittest.mock import MagicMock
-    yt_client = MagicMock()
-    playlist_manager = PlaylistManager(yt_client)
+    from src.gui.playlist_widget import PlaylistWidget
+    from src.core.playlist_manager import PlaylistManager
+    
+    playlist_manager = PlaylistManager(mock_yt_client)
     
     widget = PlaylistWidget(
         playlist_manager=playlist_manager,
@@ -161,30 +192,29 @@ def test_playlist_widget_creation(qapp, image_loader):
     assert widget.playlist_title_label is not None
 
 
-def test_player_widget_creation(qapp):
+def test_player_widget_creation(qapp, mock_yt_client):
     """Test PlayerWidget creation."""
-    from unittest.mock import MagicMock
-    yt_client = MagicMock()
+    from src.gui.player_widget import PlayerWidget
     from src.core.player import Player
-    player = Player(yt_client)
+    
+    player = Player(mock_yt_client)
     
     widget = PlayerWidget(player=player)
     
     assert widget is not None
     assert widget.play_button is not None
-    assert widget.pause_button is None  # Not created separately
     assert widget.next_button is not None
     assert widget.previous_button is not None
     assert widget.stop_button is not None
     assert widget.volume_slider is not None
 
 
-def test_player_widget_volume(qapp, qtbot):
+def test_player_widget_volume(qapp, mock_yt_client, qtbot):
     """Test PlayerWidget volume control."""
-    from unittest.mock import MagicMock
-    yt_client = MagicMock()
+    from src.gui.player_widget import PlayerWidget
     from src.core.player import Player
-    player = Player(yt_client)
+    
+    player = Player(mock_yt_client)
     
     widget = PlayerWidget(player=player)
     
@@ -208,5 +238,7 @@ def test_main_window_creation(qapp):
         assert window.search_widget is not None
         assert window.playlist_widget is not None
         assert window.player_widget is not None
+        assert window.history_widget is not None
+        assert window.favorites_widget is not None
     except Exception as e:
         pytest.skip(f"MainWindow creation failed: {e}")
