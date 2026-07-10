@@ -2,20 +2,27 @@
 Main application window for DebTube.
 """
 
-from typing import Optional
+from typing import Optional, List
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QSizePolicy, QStatusBar, QMenuBar, QMenu, QAction
+    QSizePolicy, QStatusBar, QMenuBar, QMenu, QAction, QTabWidget,
+    QDockWidget, QStackedWidget
 )
-from PyQt6.QtGui import QIcon, QAction, QKeySequence
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QIcon, QAction, QKeySequence, QPixmap
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
 
 from ..core.yt_client import YouTubeClient, VideoInfo
-from ..core.player import Player, Track
+from ..core.player import Player, Track, PlayerState
 from ..core.playlist_manager import PlaylistManager
+from ..core.history_manager import HistoryManager
+from ..core.favorites_manager import FavoritesManager
 from .search_widget import SearchWidget
 from .playlist_widget import PlaylistWidget
 from .player_widget import PlayerWidget
+from .video_item import VideoItemWidget
+from .floating_video_window import FloatingVideoWindow
+from .history_widget import HistoryWidget
+from .favorites_widget import FavoritesWidget
 from ..utils.image_loader import ImageLoader
 
 
@@ -27,7 +34,13 @@ class MainWindow(QMainWindow):
     - Search widget
     - Player widget
     - Playlist widget
+    - History widget
+    - Favorites widget
+    - Floating video window (optional)
     """
+    
+    # Signals
+    video_played = pyqtSignal(VideoInfo, float)
     
     def __init__(self):
         super().__init__()
@@ -36,12 +49,21 @@ class MainWindow(QMainWindow):
         self.yt_client = YouTubeClient()
         self.image_loader = ImageLoader()
         self.playlist_manager = PlaylistManager(self.yt_client)
+        self.history_manager = HistoryManager()
+        self.favorites_manager = FavoritesManager()
         self.player = Player(self.yt_client)
         
         # Initialize UI components
         self.search_widget = SearchWidget(self.yt_client, self.image_loader)
         self.playlist_widget = PlaylistWidget(self.playlist_manager, self.image_loader)
         self.player_widget = PlayerWidget(self.player)
+        self.history_widget = HistoryWidget(self.history_manager, self.image_loader)
+        self.favorites_widget = FavoritesWidget(self.favorites_manager, self.image_loader)
+        
+        # Floating video window
+        self.floating_window: Optional[FloatingVideoWindow] = None
+        self._is_fullscreen = False
+        self._is_mini_mode = False
         
         self._setup_ui()
         self._setup_connections()
@@ -67,21 +89,71 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Splitter for search and playlist
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.splitter.setStyleSheet("background-color: #1e1e1e;")
+        # Tab widget for different views
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                background-color: #1e1e1e;
+                border: none;
+            }
+            QTabBar::tab {
+                background-color: #222222;
+                color: #aaaaaa;
+                padding: 8px 16px;
+                border: none;
+                border-bottom: 2px solid #1e1e1e;
+            }
+            QTabBar::tab:selected {
+                background-color: #282828;
+                color: #ffffff;
+                border-bottom: 2px solid #4CAF50;
+            }
+            QTabBar::tab:hover {
+                background-color: #282828;
+                color: #ffffff;
+            }
+        """)
         
-        # Left panel - Search
-        self.splitter.addWidget(self.search_widget)
+        # Search tab
+        self.search_tab = QWidget()
+        search_layout = QVBoxLayout()
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setSpacing(0)
+        search_layout.addWidget(self.search_widget)
+        self.search_tab.setLayout(search_layout)
         
-        # Right panel - Playlist
-        self.splitter.addWidget(self.playlist_widget)
+        # Playlist tab
+        self.playlist_tab = QWidget()
+        playlist_layout = QVBoxLayout()
+        playlist_layout.setContentsMargins(0, 0, 0, 0)
+        playlist_layout.setSpacing(0)
+        playlist_layout.addWidget(self.playlist_widget)
+        self.playlist_tab.setLayout(playlist_layout)
         
-        # Set initial sizes
-        self.splitter.setSizes([600, 400])
+        # History tab
+        self.history_tab = QWidget()
+        history_layout = QVBoxLayout()
+        history_layout.setContentsMargins(0, 0, 0, 0)
+        history_layout.setSpacing(0)
+        history_layout.addWidget(self.history_widget)
+        self.history_tab.setLayout(history_layout)
         
-        # Add splitter to layout
-        main_layout.addWidget(self.splitter, stretch=1)
+        # Favorites tab
+        self.favorites_tab = QWidget()
+        favorites_layout = QVBoxLayout()
+        favorites_layout.setContentsMargins(0, 0, 0, 0)
+        favorites_layout.setSpacing(0)
+        favorites_layout.addWidget(self.favorites_widget)
+        self.favorites_tab.setLayout(favorites_layout)
+        
+        # Add tabs
+        self.tab_widget.addTab(self.search_tab, "🔍 Search")
+        self.tab_widget.addTab(self.playlist_tab, "📝 Playlist")
+        self.tab_widget.addTab(self.history_tab, "🕒 History")
+        self.tab_widget.addTab(self.favorites_tab, "⭐ Favorites")
+        
+        # Add tab widget to main layout
+        main_layout.addWidget(self.tab_widget, stretch=1)
         
         # Player widget at the bottom
         main_layout.addWidget(self.player_widget)
@@ -117,11 +189,24 @@ class MainWindow(QMainWindow):
         self.player_widget.previous_clicked.connect(self._on_previous_clicked)
         self.player_widget.volume_changed.connect(self._on_volume_changed)
         self.player_widget.seek_requested.connect(self._on_seek)
+        self.player_widget.fullscreen_requested.connect(self._on_fullscreen_requested)
         
         # Player state connections
         self.player.state_changed.connect(self._on_player_state_changed)
         self.player.track_changed.connect(self._on_track_changed)
+        self.player.position_changed.connect(self._on_position_changed)
         self.player.error_occurred.connect(self._on_player_error)
+        
+        # History widget connections
+        self.history_widget.video_selected.connect(self._on_video_selected)
+        self.history_widget.video_double_clicked.connect(self._on_video_double_clicked)
+        
+        # Favorites widget connections
+        self.favorites_widget.video_selected.connect(self._on_video_selected)
+        self.favorites_widget.video_double_clicked.connect(self._on_video_double_clicked)
+        
+        # Connect video played signal to history
+        self.video_played.connect(self._on_video_played)
     
     def _setup_menu(self):
         """Set up the menu bar."""
@@ -182,6 +267,54 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
         
+        # View menu
+        view_menu = QMenu("View", menu_bar)
+        
+        # Fullscreen action
+        fullscreen_action = QAction("Fullscreen", view_menu)
+        fullscreen_action.setShortcut(QKeySequence("F11"))
+        fullscreen_action.triggered.connect(self._toggle_fullscreen)
+        view_menu.addAction(fullscreen_action)
+        
+        # Mini mode action
+        mini_mode_action = QAction("Mini Mode", view_menu)
+        mini_mode_action.setShortcut(QKeySequence("Ctrl+M"))
+        mini_mode_action.triggered.connect(self._toggle_mini_mode)
+        view_menu.addAction(mini_mode_action)
+        
+        # Floating video action
+        floating_video_action = QAction("Floating Video", view_menu)
+        floating_video_action.setShortcut(QKeySequence("Ctrl+F"))
+        floating_video_action.triggered.connect(self._toggle_floating_video)
+        view_menu.addAction(floating_video_action)
+        
+        # Separator
+        view_menu.addSeparator()
+        
+        # Switch to Search tab
+        search_tab_action = QAction("Search", view_menu)
+        search_tab_action.setShortcut(QKeySequence("Ctrl+1"))
+        search_tab_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(0))
+        view_menu.addAction(search_tab_action)
+        
+        # Switch to Playlist tab
+        playlist_tab_action = QAction("Playlist", view_menu)
+        playlist_tab_action.setShortcut(QKeySequence("Ctrl+2"))
+        playlist_tab_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(1))
+        view_menu.addAction(playlist_tab_action)
+        
+        # Switch to History tab
+        history_tab_action = QAction("History", view_menu)
+        history_tab_action.setShortcut(QKeySequence("Ctrl+3"))
+        history_tab_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(2))
+        view_menu.addAction(history_tab_action)
+        
+        # Switch to Favorites tab
+        favorites_tab_action = QAction("Favorites", view_menu)
+        favorites_tab_action.setShortcut(QKeySequence("Ctrl+4"))
+        favorites_tab_action.triggered.connect(lambda: self.tab_widget.setCurrentIndex(3))
+        view_menu.addAction(favorites_tab_action)
+        
         # Playlist menu
         playlist_menu = QMenu("Playlist", menu_bar)
         
@@ -200,6 +333,19 @@ class MainWindow(QMainWindow):
         update_playlist_action.triggered.connect(self._on_update_playlist)
         playlist_menu.addAction(update_playlist_action)
         
+        # Clear playlist action
+        clear_playlist_action = QAction("Clear Playlist", playlist_menu)
+        clear_playlist_action.triggered.connect(self._on_clear_playlist)
+        playlist_menu.addAction(clear_playlist_action)
+        
+        # Tools menu
+        tools_menu = QMenu("Tools", menu_bar)
+        
+        # Clear history action
+        clear_history_action = QAction("Clear History", tools_menu)
+        clear_history_action.triggered.connect(self._on_clear_history)
+        tools_menu.addAction(clear_history_action)
+        
         # Help menu
         help_menu = QMenu("Help", menu_bar)
         
@@ -210,7 +356,9 @@ class MainWindow(QMainWindow):
         
         # Add menus to menu bar
         menu_bar.addMenu(file_menu)
+        menu_bar.addMenu(view_menu)
         menu_bar.addMenu(playlist_menu)
+        menu_bar.addMenu(tools_menu)
         menu_bar.addMenu(help_menu)
         
         self.setMenuBar(menu_bar)
@@ -232,6 +380,9 @@ class MainWindow(QMainWindow):
                 background-color: #222222;
                 color: #ffffff;
                 border: 1px solid #333333;
+            }
+            QTabWidget::tab-bar {
+                alignment: left;
             }
         """)
     
@@ -258,6 +409,9 @@ class MainWindow(QMainWindow):
         
         # Also add to the playlist widget
         self.playlist_widget.add_video(video_info)
+        
+        # Emit video played signal for history
+        self.video_played.emit(video_info, 0.0)
         
         self.status_bar.showMessage(f"Playing '{video_info.title}'", 2000)
     
@@ -318,10 +472,12 @@ class MainWindow(QMainWindow):
         """Handle seek request."""
         self.player.seek(position)
     
-    def _on_player_state_changed(self, state):
+    def _on_fullscreen_requested(self):
+        """Handle fullscreen request from player widget."""
+        self._toggle_fullscreen()
+    
+    def _on_player_state_changed(self, state: PlayerState):
         """Handle player state change."""
-        from ..core.player import PlayerState
-        
         if state == PlayerState.PLAYING:
             track = self.player.current_track
             if track:
@@ -337,10 +493,84 @@ class MainWindow(QMainWindow):
         """Handle track change."""
         if track:
             self.status_bar.showMessage(f"Now playing: {track.title}", 2000)
+            
+            # Update floating window if open
+            if self.floating_window:
+                self.floating_window.update_video_info(track.video_info)
+    
+    def _on_position_changed(self, position: float):
+        """Handle position change."""
+        # Update history with current position
+        if self.player.current_track:
+            self.history_manager.update_position(
+                self.player.current_track.id,
+                position
+            )
     
     def _on_player_error(self, error: str):
         """Handle player error."""
         self.status_bar.showMessage(f"Error: {error}", 5000)
+    
+    def _on_video_played(self, video_info: VideoInfo, position: float):
+        """Handle video played signal (for history)."""
+        self.history_manager.add_entry(video_info, position)
+        self.history_widget.refresh()
+    
+    def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
+        if self._is_fullscreen:
+            self.showNormal()
+            self._is_fullscreen = False
+        else:
+            self.showFullScreen()
+            self._is_fullscreen = True
+    
+    def _toggle_mini_mode(self):
+        """Toggle mini mode."""
+        if self._is_mini_mode:
+            # Restore normal mode
+            self.resize(1024, 768)
+            self._is_mini_mode = False
+            self.status_bar.showMessage("Mini mode: OFF", 2000)
+        else:
+            # Switch to mini mode
+            self.resize(400, 200)
+            self._is_mini_mode = True
+            self.status_bar.showMessage("Mini mode: ON", 2000)
+    
+    def _toggle_floating_video(self):
+        """Toggle floating video window."""
+        if self.floating_window:
+            # Close floating window
+            self.floating_window.close()
+            self.floating_window = None
+            self.status_bar.showMessage("Floating video: OFF", 2000)
+        else:
+            # Create floating window with current track
+            current_track = self.player.current_track
+            if current_track:
+                self.floating_window = FloatingVideoWindow(
+                    video_info=current_track.video_info,
+                    image_loader=self.image_loader,
+                    parent=self
+                )
+                
+                # Connect signals
+                self.floating_window.closed.connect(self._on_floating_window_closed)
+                self.floating_window.play_clicked.connect(self._on_play_clicked)
+                self.floating_window.pause_clicked.connect(self._on_pause_clicked)
+                self.floating_window.stop_clicked.connect(self._on_stop_clicked)
+                self.floating_window.fullscreen_requested.connect(self._toggle_fullscreen)
+                
+                # Show the window
+                self.floating_window.show()
+                self.status_bar.showMessage("Floating video: ON", 2000)
+            else:
+                self.status_bar.showMessage("No track to display", 2000)
+    
+    def _on_floating_window_closed(self):
+        """Handle floating window closed."""
+        self.floating_window = None
     
     def _on_new_playlist(self):
         """Handle new playlist action."""
@@ -449,13 +679,25 @@ class MainWindow(QMainWindow):
                     2000
                 )
     
+    def _on_clear_playlist(self):
+        """Handle clear playlist action."""
+        self.player.clear_playlist()
+        self.playlist_widget.clear_playlist()
+        self.status_bar.showMessage("Playlist cleared", 2000)
+    
+    def _on_clear_history(self):
+        """Handle clear history action."""
+        self.history_manager.clear_history()
+        self.history_widget.refresh()
+        self.status_bar.showMessage("History cleared", 2000)
+    
     def _on_about(self):
         """Handle about action."""
         from PyQt6.QtWidgets import QMessageBox
         
         about_text = """
         <h2>DebTube - YouTube Music Player</h2>
-        <p>Version 0.1.0</p>
+        <p>Version 0.2.0</p>
         <p>A simple YouTube music player for Debian 12+</p>
         <p>Uses yt-dlp for YouTube access and MPV for playback</p>
         <p>&copy; 2024 DebTube Team</p>
@@ -468,8 +710,24 @@ class MainWindow(QMainWindow):
         # Stop the player
         self.player.stop()
         
+        # Close floating window if open
+        if self.floating_window:
+            self.floating_window.close()
+        
         # Save current playlist
         if self.current_playlist:
             self.playlist_manager.save_playlist(self.current_playlist)
         
         event.accept()
+    
+    def keyPressEvent(self, event):
+        """Handle key press events."""
+        # Global shortcuts
+        if event.key() == Qt.Key.Key_Escape:
+            if self._is_fullscreen:
+                self._toggle_fullscreen()
+                event.accept()
+                return
+        
+        # Pass to parent
+        super().keyPressEvent(event)

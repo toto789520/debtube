@@ -1,0 +1,42 @@
+#!/usr/bin/make -f
+%:
+	dh $@
+
+override_dh_auto_install:
+	# Install the application files
+	install -d debian/debtube/usr/bin
+	install -d debian/debtube/usr/share/debtube
+	install -d debian/debtube/usr/share/applications
+	install -d debian/debtube/usr/share/pixmaps
+	
+	# Copy source files
+	cp -r src debian/debtube/usr/share/debtube/
+	cp main.py debian/debtube/usr/share/debtube/
+	cp requirements.txt debian/debtube/usr/share/debtube/
+	cp README.md debian/debtube/usr/share/debtube/
+	cp LICENSE debian/debtube/usr/share/debtube/
+	
+	# Create the main executable
+	cat > debian/debtube/usr/bin/debtube << 'EOF'
+#!/bin/bash
+cd /usr/share/debtube && python3 main.py
+EOF
+	chmod +x debian/debtube/usr/bin/debtube
+	
+	# Create desktop entry
+	cat > debian/debtube/usr/share/applications/debtube.desktop << 'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=DebTube
+Comment=YouTube Music Player
+Exec=/usr/bin/debtube
+Icon=/usr/share/pixmaps/debtube.png
+Terminal=false
+Categories=AudioVideo;Player;Music;
+StartupWMClass=DebTube
+EOF
+	
+	# Create a simple icon (placeholder)
+	# In a real package, you would have a proper icon file
+	touch debian/debtube/usr/share/pixmaps/debtube.png

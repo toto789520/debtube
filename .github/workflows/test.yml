@@ -1,0 +1,28 @@
+name: Run Tests
+
+on:
+  push:
+    branches: [ main, vibe/** ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-qt PyQt6 yt-dlp python-mpv pillow requests
+    
+    - name: Run tests
+      run: |
+        pytest tests/ -v --tb=short

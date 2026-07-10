@@ -1,0 +1,39 @@
+name: Build Debian Package
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y devscripts debhelper dh-make build-essential
+    
+    - name: Build Debian package
+      run: |
+        # Install Python dependencies
+        sudo apt-get install -y python3 python3-pip mpv
+        pip install PyQt6 yt-dlp python-mpv pillow requests
+        
+        # Build the package
+        dpkg-buildpackage -us -uc -b
+    
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: debtube-deb-package
+        path: |
+          ../debtube_*.deb
+          ../debtube_*.tar.*
+          ../debtube_*.dsc
+          ../debtube_*.buildinfo
