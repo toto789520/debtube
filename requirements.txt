@@ -1,0 +1,12 @@
+# Core dependencies
+yt-dlp>=2024.0.1
+PyQt6>=6.4.0
+python-mpv>=1.0.0
+requests>=2.31.0
+
+# Optional (for better metadata handling)
+pillow>=10.0.0  # For thumbnail handling
+
+# Dev dependencies (for testing)
+pytest>=7.0.0
+pytest-qt>=4.0.0
