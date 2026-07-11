@@ -13,12 +13,12 @@ from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 
+from .config import Config
 from .yt_client import PlaylistInfo, VideoInfo, YouTubeClient
 
 
-# Directory for saved playlists
-PLAYLISTS_DIR = Path(__file__).parent.parent.parent / "data" / "playlists"
-PLAYLISTS_DIR.mkdir(parents=True, exist_ok=True)
+# Use config for playlists directory
+PLAYLISTS_DIR = Config.get_data_dir() / "playlists"
 
 
 @dataclass
@@ -72,6 +72,8 @@ class PlaylistManager:
     
     def __init__(self, yt_client: YouTubeClient):
         self.yt_client = yt_client
+        # Ensure directories exist
+        Config.ensure_directories()
     
     def get_playlist_path(self, playlist_id: str) -> Path:
         """Get the file path for a playlist."""

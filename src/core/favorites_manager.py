@@ -12,12 +12,12 @@ from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict, field
 
+from .config import Config
 from .yt_client import VideoInfo
 
 
-# Directory for favorites data
-FAVORITES_DIR = Path(__file__).parent.parent.parent / "data" / "favorites"
-FAVORITES_DIR.mkdir(parents=True, exist_ok=True)
+# Use config for favorites directory
+FAVORITES_DIR = Config.get_data_dir() / "favorites"
 FAVORITES_FILE = FAVORITES_DIR / "favorites.json"
 
 
@@ -65,6 +65,8 @@ class FavoritesManager:
     
     def __init__(self):
         self._favorites: List[FavoriteEntry] = []
+        # Ensure directories exist
+        Config.ensure_directories()
         self._load_favorites()
     
     def _load_favorites(self) -> None:

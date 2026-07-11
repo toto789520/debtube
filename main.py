@@ -17,6 +17,10 @@ import argparse
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(SRC_DIR, "src"))
 
+# Ensure directories exist before importing anything
+from src.core.config import Config
+Config.ensure_directories()
+
 
 def can_run_gui():
     """Check if GUI mode is available."""

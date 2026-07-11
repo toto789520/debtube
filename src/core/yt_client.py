@@ -15,9 +15,10 @@ from pathlib import Path
 from dataclasses import dataclass, asdict
 from datetime import timedelta
 
-# Ensure data directory exists
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
-DATA_DIR.mkdir(exist_ok=True)
+from .config import Config
+
+# Use config for data directory
+DATA_DIR = Config.get_data_dir()
 
 
 @dataclass
@@ -152,9 +153,9 @@ class YouTubeClient:
         
         # Build search URL
         if yt_music:
-            search_url = f"ytmsearch{max_results}:\"{query}\""
+            search_url = f'ytmsearch{max_results}:"{query}"'
         else:
-            search_url = f"ytsearch{max_results}:\"{query}\""
+            search_url = f'ytsearch{max_results}:"{query}"'
         
         # Configure yt-dlp options
         ydl_opts = {

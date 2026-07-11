@@ -12,12 +12,12 @@ from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass, asdict
 
+from .config import Config
 from .yt_client import VideoInfo
 
 
-# Directory for history data
-HISTORY_DIR = Path(__file__).parent.parent.parent / "data" / "history"
-HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+# Use config for history directory
+HISTORY_DIR = Config.get_data_dir() / "history"
 HISTORY_FILE = HISTORY_DIR / "history.json"
 
 
@@ -64,6 +64,8 @@ class HistoryManager:
     
     def __init__(self, max_size: int = 100):
         self.max_size = max_size
+        # Ensure directories exist
+        Config.ensure_directories()
     
     def add_entry(self, video_info: VideoInfo, position: float = 0.0) -> None:
         """

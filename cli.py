@@ -14,6 +14,10 @@ import os
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(SRC_DIR, "src"))
 
+# Ensure directories exist before importing
+from src.core.config import Config
+Config.ensure_directories()
+
 from src.cli.cli_app import CLIApp
 
 

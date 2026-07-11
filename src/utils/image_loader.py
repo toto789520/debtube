@@ -15,10 +15,11 @@ from PyQt6.QtGui import QPixmap, QImage
 from PyQt6.QtCore import QSize, Qt
 import requests
 
+from ..core.config import Config
 
-# Directory for cached images
-IMAGE_CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "images"
-IMAGE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Use config for cache directory
+IMAGE_CACHE_DIR = Config.get_data_dir() / "images"
 
 
 class ImageLoader:
@@ -28,6 +29,8 @@ class ImageLoader:
     
     def __init__(self, cache_enabled: bool = True):
         self.cache_enabled = cache_enabled
+        # Ensure directories exist
+        Config.ensure_directories()
     
     def _get_cache_path(self, url: str) -> Path:
         """Get the cache path for a URL."""
