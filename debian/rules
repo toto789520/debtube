@@ -17,25 +17,25 @@ override_dh_auto_install:
 	cp LICENSE debian/debtube/usr/share/debtube/
 	
 	# Create the main executable
-	cat > debian/debtube/usr/bin/debtube << 'EOF'
-#!/bin/bash
-cd /usr/share/debtube && python3 main.py
-EOF
+	printf '%s\n' \
+		'#!/bin/bash' \
+		'cd /usr/share/debtube && python3 main.py' \
+		> debian/debtube/usr/bin/debtube
 	chmod +x debian/debtube/usr/bin/debtube
 	
 	# Create desktop entry
-	cat > debian/debtube/usr/share/applications/debtube.desktop << 'EOF'
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=DebTube
-Comment=YouTube Music Player
-Exec=/usr/bin/debtube
-Icon=/usr/share/pixmaps/debtube.png
-Terminal=false
-Categories=AudioVideo;Player;Music;
-StartupWMClass=DebTube
-EOF
+	printf '%s\n' \
+		'[Desktop Entry]' \
+		'Version=1.0' \
+		'Type=Application' \
+		'Name=DebTube' \
+		'Comment=YouTube Music Player' \
+		'Exec=/usr/bin/debtube' \
+		'Icon=/usr/share/pixmaps/debtube.png' \
+		'Terminal=false' \
+		'Categories=AudioVideo;Player;Music;' \
+		'StartupWMClass=DebTube' \
+		> debian/debtube/usr/share/applications/debtube.desktop
 	
 	# Create a simple icon (placeholder)
 	# In a real package, you would have a proper icon file

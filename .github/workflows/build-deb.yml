@@ -26,16 +26,22 @@ jobs:
     - name: Build Debian package
       run: |
         cd .
-        dpkg-buildpackage -us -uc -b 2>&1 | tee build.log || echo "Build completed with warnings"
+        dpkg-buildpackage -us -uc -b 2>&1 | tee build.log
+
+    - name: Collect build artifacts
+      if: always()
+      run: |
+        mkdir -p artifacts
+        for pattern in ../*.deb ../*.tar.* ../*.dsc ../*.buildinfo build.log; do
+          for file in $pattern; do
+            [ -e "$file" ] || continue
+            cp "$file" artifacts/
+          done
+        done
     
     - name: Upload package artifact
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: debtube-deb-package
-        path: |
-          ../*.deb
-          ../*.tar.*
-          ../*.dsc
-          ../*.buildinfo
-          build.log
+        path: artifacts/
