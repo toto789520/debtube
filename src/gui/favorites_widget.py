@@ -204,7 +204,7 @@ class FavoritesWidget(QWidget):
     
     def _show_context_menu(self, widget: VideoItemWidget, entry: FavoriteEntry, pos):
         """Show context menu for a favorite entry."""
-        from PyQt6.QtWidgets import QMenu, QAction
+        from PyQt6.QtWidgets import QMenu
         
         menu = QMenu(self)
         

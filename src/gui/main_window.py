@@ -5,10 +5,10 @@ Main application window for DebTube.
 from typing import Optional, List
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
-    QSizePolicy, QStatusBar, QMenuBar, QMenu, QAction, QTabWidget,
+    QSizePolicy, QStatusBar, QMenuBar, QMenu, QTabWidget,
     QDockWidget, QStackedWidget
 )
-from PyQt6.QtGui import QIcon, QAction, QKeySequence, QPixmap
+from PyQt6.QtGui import QIcon, QKeySequence, QPixmap
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 
 from ..core.yt_client import YouTubeClient, VideoInfo

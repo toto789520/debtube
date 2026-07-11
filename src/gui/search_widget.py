@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QLabel, QSizePolicy, QListWidget, QListWidgetItem,
     QStackedWidget, QFrame
 )
+from PyQt6.QtGui import QAction
 from PyQt6.QtGui import QFont, QIcon, QPixmap
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer
 
@@ -318,7 +319,6 @@ class SearchWidget(QWidget):
             video_info: Video information
             pos: Position for the menu
         """
-        from PyQt6.QtWidgets import QMenu, QAction
         
         menu = QMenu(self)
         
