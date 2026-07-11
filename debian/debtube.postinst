@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# Post-installation script for DebTube
+# Creates user directories with proper permissions
+
+set -e
+
+# Create XDG directories for the current user
+if [ -n "$HOME" ]; then
+    # Data directory
+    mkdir -p "$HOME/.local/share/debtube/cache"
+    mkdir -p "$HOME/.local/share/debtube/playlists"
+    mkdir -p "$HOME/.local/share/debtube/history"
+    mkdir -p "$HOME/.local/share/debtube/favorites"
+    mkdir -p "$HOME/.local/share/debtube/thumbnails"
+    mkdir -p "$HOME/.local/share/debtube/images"
+    
+    # Config directory
+    mkdir -p "$HOME/.config/debtube"
+    
+    # Cache directory
+    mkdir -p "$HOME/.cache/debtube"
+    
+    # Set proper permissions
+    chmod 755 "$HOME/.local/share/debtube" 2>/dev/null || true
+    chmod 755 "$HOME/.local/share/debtube"/* 2>/dev/null || true
+    chmod 755 "$HOME/.config/debtube" 2>/dev/null || true
+    chmod 755 "$HOME/.cache/debtube" 2>/dev/null || true
+fi
+
+# Update desktop database
+if [ -x /usr/bin/update-desktop-database ]; then
+    update-desktop-database -q || true
+fi
+
+# Update icon cache
+if [ -x /usr/bin/gtk-update-icon-cache ]; then
+    gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+fi
+
+exit 0
