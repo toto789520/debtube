@@ -2,50 +2,96 @@
 """
 DebTube - YouTube Music Player for Debian 12+
 Main entry point for the application.
+
+Usage:
+    python3 main.py          # Start GUI mode (default)
+    python3 main.py --cli    # Start CLI mode
+    python3 main.py --help   # Show help
 """
 
 import sys
 import os
-from pathlib import Path
+import argparse
 
 # Add src directory to path
-SRC_DIR = Path(__file__).parent / "src"
-sys.path.insert(0, str(SRC_DIR))
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(SRC_DIR, "src"))
 
-# Check for required dependencies
-try:
-    import PyQt6
-    import yt_dlp
-    import mpv
-except ImportError as e:
-    print(f"Error: Missing required dependency: {e}")
-    print("\nPlease install the required dependencies:")
-    print("  pip install -r requirements.txt")
-    print("\nOr on Debian:")
-    print("  sudo apt install python3-pip mpv")
-    print("  pip install PyQt6 yt-dlp python-mpv")
-    sys.exit(1)
 
-from PyQt6.QtWidgets import QApplication
-from src.gui.main_window import MainWindow
+def can_run_gui():
+    """Check if GUI mode is available."""
+    # Check if DISPLAY is set (needed for GUI)
+    if not os.environ.get('DISPLAY'):
+        return False
+    
+    # Check if PyQt6 is available
+    try:
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtGui import QAction
+        # Test creating a QApplication
+        app = QApplication([])
+        app.quit()
+        return True
+    except ImportError:
+        return False
+    except Exception:
+        return False
 
 
 def main():
     """Main entry point."""
-    # Create application
-    app = QApplication(sys.argv)
+    parser = argparse.ArgumentParser(
+        description="DebTube - YouTube Music Player",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python3 main.py              Start in GUI mode
+  python3 main.py --cli        Start in CLI mode
+  python3 main.py --help       Show this help
+        """
+    )
     
-    # Set application metadata
-    app.setApplicationName("DebTube")
-    app.setOrganizationName("DebTube")
-    app.setApplicationVersion("0.1.0")
+    parser.add_argument(
+        "--cli",
+        action="store_true",
+        help="Run in command-line mode (no GUI)"
+    )
     
-    # Create and show main window
-    window = MainWindow()
-    window.show()
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Run in GUI mode (default)"
+    )
     
-    # Run application
-    sys.exit(app.exec())
+    args = parser.parse_args()
+    
+    # Decide which mode to run
+    if args.cli:
+        # Run CLI mode
+        from src.cli.cli_app import CLIApp
+        app = CLIApp()
+        app.run()
+    elif args.gui or can_run_gui():
+        # Run GUI mode
+        from PyQt6.QtWidgets import QApplication
+        from src.gui.main_window import MainWindow
+        
+        app = QApplication(sys.argv)
+        app.setApplicationName("DebTube")
+        app.setOrganizationName("DebTube")
+        app.setApplicationVersion("0.1.0")
+        
+        window = MainWindow()
+        window.show()
+        
+        sys.exit(app.exec())
+    else:
+        # Fall back to CLI mode
+        print("GUI mode not available (missing dependencies or display)")
+        print("Falling back to CLI mode. Use --gui to force GUI mode.")
+        from src.cli.cli_app import CLIApp
+        app = CLIApp()
+        app.run()
 
 
 if __name__ == "__main__":
