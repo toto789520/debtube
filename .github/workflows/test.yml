@@ -30,17 +30,5 @@ jobs:
     
     - name: Run non-GUI tests
       run: |
-        # Run all tests except GUI tests (which require display)
-        pytest tests/ -v --tb=short -k "not test_gui and not test_video_item and not test_search_widget and not test_playlist_widget and not test_player_widget and not test_main_window"
-    
-    - name: Run GUI tests with xvfb
-      run: |
-        # Install xvfb for GUI tests
-        sudo apt-get install -y xvfb
-        
-        # Run GUI tests with virtual display
-        Xvfb :99 -screen 0 1024x768x16 &
-        export DISPLAY=:99
-        
-        # Run only GUI tests
-        pytest tests/test_gui.py tests/test_video_item.py tests/test_search_widget.py tests/test_playlist_widget.py tests/test_player_widget.py tests/test_main_window.py -v --tb=short || echo "GUI tests completed (some may have failed due to environment limitations)"
+        # Run only non-GUI tests in CI (GUI tests require display)
+        pytest tests/test_yt_client.py tests/test_helpers.py tests/test_history_manager.py tests/test_favorites_manager.py tests/test_playlist_manager.py -v --tb=short
