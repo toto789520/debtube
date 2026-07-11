@@ -40,7 +40,7 @@ class VideoInfo:
         return asdict(self)
     
     @classmethod
-        def from_dict(cls, data: Dict) -> "VideoInfo":
+    def from_dict(cls, data: Dict) -> "VideoInfo":
         return cls(**data)
 
 
@@ -152,9 +152,9 @@ class YouTubeClient:
         
         # Build search URL
         if yt_music:
-            search_url = f"ytmsearch{max_results}:"{query}""
+            search_url = f"ytmsearch{max_results}:\"{query}\""
         else:
-            search_url = f"ytsearch{max_results}:"{query}""
+            search_url = f"ytsearch{max_results}:\"{query}\""
         
         # Configure yt-dlp options
         ydl_opts = {
@@ -312,7 +312,7 @@ class YouTubeClient:
                     info = ydl.extract_info(f"https://www.youtube.com/@{channel_id}", download=False)
                     channel_id = info.get("channel_id", channel_id)
                     channel_url = f"https://www.youtube.com/channel/{channel_id}/playlists"
-            except:
+            except Exception:
                 pass
         
         ydl_opts = {

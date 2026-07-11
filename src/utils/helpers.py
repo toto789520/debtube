@@ -83,12 +83,11 @@ def sanitize_filename(filename: str) -> str:
         Sanitized filename
     """
     import re
-    # Remove invalid characters
-    sanitized = re.sub(r'[<>:"\\|?*\x00-\x1f]', "", filename)
+    # Remove invalid characters including forward slashes
+    sanitized = re.sub(r'[<>:"\|?*\x00-\x1f\/]', "", filename)
     # Replace spaces with underscores
     sanitized = sanitized.replace(" ", "_")
     return sanitized
-
 
 def generate_id() -> str:
     """

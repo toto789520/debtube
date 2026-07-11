@@ -68,7 +68,7 @@ class Player(QObject):
     position_changed = pyqtSignal(float)  # Position in seconds
     duration_changed = pyqtSignal(float)  # Duration in seconds
     volume_changed = pyqtSignal(int)  # Volume percentage (0-100)
-    playlist_changed = pyqtSignal(List[Track])
+    playlist_changed = pyqtSignal(list)
     error_occurred = pyqtSignal(str)
     
     def __init__(self, yt_client: YouTubeClient):
