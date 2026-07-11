@@ -6,11 +6,11 @@ Handles audio playback in command-line mode using MPV.
 import subprocess
 import threading
 import time
-from typing import Optional, List
+from typing import Optional
 from pathlib import Path
 
 from ..core.yt_client import VideoInfo
-from ..core.player import PlayerState, RepeatMode
+from ..core.player import PlayerState
 
 
 class CLIPlayer:
@@ -35,8 +35,9 @@ class CLIPlayer:
     
     @volume.setter
     def volume(self, value: int):
-        if 0 <= value <= 100:
-            self._volume = value
+        # Clamp value between 0 and 100
+        value = max(0, min(100, value))
+        self._volume = value
     
     @property
     def current_track(self) -> Optional[VideoInfo]:
